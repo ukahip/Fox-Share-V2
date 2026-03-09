@@ -2,6 +2,13 @@
   "functions": {
     "api/*.js": { "maxDuration": 10 }
   },
+  "routes": [
+    { "src": "/api/cognito", "dest": "/api/cognito.js" },
+    { "src": "/api/files",   "dest": "/api/files.js" },
+    { "src": "/style.css",   "dest": "/style.css" },
+    { "src": "/app.js",      "dest": "/app.js" },
+    { "src": "/",            "dest": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
