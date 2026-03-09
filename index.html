@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FoxShare — Secure File Vault</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">🦊</div>
+    <div class="header-text">
+      <h1>Fox<span>Share</span></h1>
+      <p>Secure File Vault — KMS Encrypted — MFA Enabled</p>
+    </div>
+  </div>
+  <p class="tagline">// S3 · KMS · Lambda · API Gateway · Cognito MFA</p>
+
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <span id="statusMsg">Ready — login or sign up to get started</span>
+  </div>
+
+  <!-- STEP 1: AUTH -->
+  <div class="card">
+    <div class="card-head" onclick="toggle('login')">
+      <div class="step">1</div>
+      <span class="card-title">Authentication</span>
+      <span class="badge badge-req">REQUIRED</span>
+      <span class="chevron open" id="ch-login">▼</span>
+    </div>
+    <div class="card-body open" id="bd-login">
+
+      <!-- LOGGED IN STATE -->
+      <div id="loggedInBox" class="logged-in-box">
+        <div class="login-success-icon">✅</div>
+        <div class="login-welcome-name" id="loggedInName"></div>
+        <div class="login-welcome-sub">You're securely logged in. Use the sections below to upload and manage your files.</div>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div id="loginForm">
+        <div class="grid2">
+          <div class="field">
+            <label>Email</label>
+            <input type="text" id="loginId" placeholder="you@example.com"
+              autocomplete="email" onkeydown="if(event.key==='Enter')login()"/>
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="••••••••"
+              autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="loginBtn" onclick="login()">Login</button>
+        <div class="auth-toggle">
+          Don't have an account? <a onclick="showSignup()">Sign Up</a>
+          &nbsp;·&nbsp;
+          <a onclick="showForgot()">Forgot Password?</a>
+        </div>
+        <div class="resp" id="loginResp"></div>
+      </div>
+
+      <!-- MFA CODE INPUT -->
+      <div class="mfa-section" id="mfaSection">
+        <div class="mfa-title">🔐 Enter MFA Code</div>
+        <div class="mfa-sub">Open your authenticator app and enter the 6-digit code for</div>
+        <div class="mfa-email" id="mfaEmailDisplay"></div>
+        <div class="mfa-wrap">
+          <input class="mfa-digit" id="d0" maxlength="1" inputmode="numeric" oninput="mfaNext(this,0,'d')" onkeydown="mfaBack(event,0,'d')" onpaste="mfaPaste(event,'d')"/>
+          <input class="mfa-digit" id="d1" maxlength="1" inputmode="numeric" oninput="mfaNext(this,1,'d')" onkeydown="mfaBack(event,1,'d')" onpaste="mfaPaste(event,'d')"/>
+          <input class="mfa-digit" id="d2" maxlength="1" inputmode="numeric" oninput="mfaNext(this,2,'d')" onkeydown="mfaBack(event,2,'d')" onpaste="mfaPaste(event,'d')"/>
+          <input class="mfa-digit" id="d3" maxlength="1" inputmode="numeric" oninput="mfaNext(this,3,'d')" onkeydown="mfaBack(event,3,'d')" onpaste="mfaPaste(event,'d')"/>
+          <input class="mfa-digit" id="d4" maxlength="1" inputmode="numeric" oninput="mfaNext(this,4,'d')" onkeydown="mfaBack(event,4,'d')" onpaste="mfaPaste(event,'d')"/>
+          <input class="mfa-digit" id="d5" maxlength="1" inputmode="numeric" oninput="mfaNext(this,5,'d')" onkeydown="mfaBack(event,5,'d')" onpaste="mfaPaste(event,'d')"/>
+        </div>
+        <button class="btn btn-primary" id="mfaBtn" onclick="submitMfa()">Verify Code</button>
+        <div class="resp" id="mfaResp"></div>
+      </div>
+
+      <!-- MFA SETUP (first login) -->
+      <div class="scan-box" id="mfaSetupBox">
+        <div class="scan-title">📱 Set Up Authenticator App</div>
+        <div class="scan-steps">
+          <span>1.</span> Download <b>Google Authenticator</b> or <b>Authy</b> on your phone<br/>
+          <span>2.</span> Tap <b>+</b> then scan the QR code below<br/>
+          <span>3.</span> Enter the 6-digit code shown in the app
+        </div>
+        <div id="qrSetup" class="qr-setup-wrap"></div>
+        <div class="mfa-wrap">
+          <input class="mfa-digit" id="s0" maxlength="1" inputmode="numeric" oninput="mfaNext(this,0,'s')" onkeydown="mfaBack(event,0,'s')" onpaste="mfaPaste(event,'s')"/>
+          <input class="mfa-digit" id="s1" maxlength="1" inputmode="numeric" oninput="mfaNext(this,1,'s')" onkeydown="mfaBack(event,1,'s')" onpaste="mfaPaste(event,'s')"/>
+          <input class="mfa-digit" id="s2" maxlength="1" inputmode="numeric" oninput="mfaNext(this,2,'s')" onkeydown="mfaBack(event,2,'s')" onpaste="mfaPaste(event,'s')"/>
+          <input class="mfa-digit" id="s3" maxlength="1" inputmode="numeric" oninput="mfaNext(this,3,'s')" onkeydown="mfaBack(event,3,'s')" onpaste="mfaPaste(event,'s')"/>
+          <input class="mfa-digit" id="s4" maxlength="1" inputmode="numeric" oninput="mfaNext(this,4,'s')" onkeydown="mfaBack(event,4,'s')" onpaste="mfaPaste(event,'s')"/>
+          <input class="mfa-digit" id="s5" maxlength="1" inputmode="numeric" oninput="mfaNext(this,5,'s')" onkeydown="mfaBack(event,5,'s')" onpaste="mfaPaste(event,'s')"/>
+        </div>
+        <button class="btn btn-primary" id="setupBtn" onclick="confirmSetup()">Confirm MFA Setup</button>
+        <div class="resp" id="setupResp"></div>
+      </div>
+
+      <!-- SIGN UP FORM -->
+      <div id="signupForm" class="auth-form">
+        <div class="grid2">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email"/>
+          </div>
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="signupDisplayName" placeholder="e.g. Jade Fox" autocomplete="nickname"/>
+            <span class="hint">Optional — shown after login</span>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="signupPwd" placeholder="min 8 chars, 1 number, 1 symbol" autocomplete="new-password"/>
+          </div>
+          <div class="field">
+            <label>Confirm Password</label>
+            <input type="password" id="signupConfirm" placeholder="re-enter password" autocomplete="new-password"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="signupBtn" onclick="signUp()">Create Account</button>
+        <div class="auth-toggle">Already have an account? <a onclick="showLogin()">Login</a></div>
+        <div class="resp" id="signupResp"></div>
+      </div>
+
+      <!-- EMAIL VERIFY BOX -->
+      <div id="verifyBox" class="auth-form">
+        <div class="scan-title mt0">📧 Verify Your Email</div>
+        <div class="scan-steps mb12">We sent a 6-digit code to <span id="verifyEmailDisplay" class="highlight-email"></span>. Enter it below to confirm your account.</div>
+        <div class="grid1">
+          <div class="field">
+            <label>Verification Code</label>
+            <input type="text" id="verifyCode" placeholder="Enter 6-digit code" inputmode="numeric" maxlength="6"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="verifyBtn" onclick="verifyEmail()">Verify Email</button>
+        <button class="btn btn-ghost mt8" id="resendBtn" onclick="resendCode()">Resend Code</button>
+        <div class="resp" id="verifyResp"></div>
+      </div>
+
+      <!-- FORGOT PASSWORD -->
+      <div id="forgotBox" class="auth-form">
+        <div class="scan-title mt0">🔑 Forgot Password</div>
+        <div class="grid1">
+          <div class="field">
+            <label>Your Account Email</label>
+            <input type="email" id="forgotEmail" placeholder="you@example.com"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="forgotBtn" onclick="forgotPassword()">Send Reset Code</button>
+        <div class="auth-toggle">Remember your password? <a onclick="showLogin()">Login</a></div>
+        <div class="resp" id="forgotResp"></div>
+      </div>
+
+      <!-- RESET PASSWORD -->
+      <div id="resetBox" class="auth-form">
+        <div class="scan-title mt0">🔑 Reset Password</div>
+        <div class="scan-steps mb12">Enter the code from your email and choose a new password.</div>
+        <div class="grid1">
+          <div class="field">
+            <label>Reset Code</label>
+            <input type="text" id="resetCode" placeholder="6-digit code from email" inputmode="numeric" maxlength="6"/>
+          </div>
+          <div class="field">
+            <label>New Password</label>
+            <input type="password" id="resetPwd" placeholder="min 8 chars, 1 number, 1 symbol"/>
+          </div>
+          <div class="field">
+            <label>Confirm New Password</label>
+            <input type="password" id="resetConfirm" placeholder="re-enter new password"/>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="resetBtn" onclick="resetPassword()">Reset Password</button>
+        <div class="resp" id="resetResp"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STEP 2: UPLOAD -->
+  <div class="card">
+    <div class="card-head" onclick="toggle('upload')">
+      <div class="step">2</div>
+      <span class="card-title">Upload a File</span>
+      <span class="badge badge-req">REQUIRED</span>
+      <span class="chevron" id="ch-upload">▼</span>
+    </div>
+    <div class="card-body" id="bd-upload">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" onchange="fileSelected(this)"/>
+        <div class="drop-icon">📁</div>
+        <div class="drop-text">Drag a file here or click to browse</div>
+        <div class="drop-name" id="dropName"></div>
+      </div>
+      <p class="help">Allowed: PDF, Word, Excel, PowerPoint, images, video, audio, ZIP, code files and more · Max 50 MB</p>
+      <button class="btn btn-primary" id="uploadBtn" onclick="uploadFile()">Upload &amp; Encrypt File</button>
+      <div class="resp" id="uploadResp"></div>
+    </div>
+  </div>
+
+  <!-- STEP 3: FILES -->
+  <div class="card">
+    <div class="card-head" onclick="toggle('files')">
+      <div class="step">3</div>
+      <span class="card-title">My Files</span>
+      <span class="badge badge-opt">OPTIONAL</span>
+      <span class="chevron" id="ch-files">▼</span>
+    </div>
+    <div class="card-body" id="bd-files">
+      <button class="btn btn-primary" id="listBtn" onclick="listFiles()">Refresh My Files</button>
+      <div class="resp" id="listResp"></div>
+      <div class="files-list" id="filesList"></div>
+    </div>
+  </div>
+  <!-- QR CODE -->
+  <div class="qr-section">
+    <p>Scan to open FoxShare on mobile</p>
+    <div id="qrcode"></div>
+  </div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+<script src="/app.js"></script>
+</body>
+</html>
