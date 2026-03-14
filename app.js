@@ -306,14 +306,34 @@ function logout() {
   showLogin();
   setStatus('Logged out', '');
 }
+
+const MAX_SIZE_MB    = 50;
+const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
 let selectedFile = null;
 function fileSelected(input) {
-  selectedFile = input.files[0];
-  document.getElementById('dropName').textContent = selectedFile ? '📎 ' + selectedFile.name : '';
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > MAX_SIZE_BYTES) {
+    resp('uploadResp', `❌ File too large — maximum allowed size is ${MAX_SIZE_MB} MB.`, 'err');
+    input.value = '';
+    selectedFile = null;
+    document.getElementById('dropName').textContent = '';
+    return;
+  }
+  selectedFile = file;
+  document.getElementById('dropName').textContent = '📎 ' + file.name;
 }
 async function uploadFile() {
   if (!S.token)      { resp('uploadResp', '⚠ Please login first.', 'warn'); return; }
   if (!selectedFile) { resp('uploadResp', '⚠ Please select a file.', 'warn'); return; }
+
+  // Client-side size check before making any network request
+  if (selectedFile.size > MAX_SIZE_BYTES) {
+    resp('uploadResp', `❌ File too large — maximum allowed size is ${MAX_SIZE_MB} MB.`, 'err');
+    return;
+  }
+
   const btn = document.getElementById('uploadBtn');
   btn.innerHTML = '<span class="spin"></span>Requesting upload URL...'; btn.disabled = true;
   try {
@@ -465,6 +485,12 @@ dz.addEventListener('dragleave', () => dz.classList.remove('over'));
 dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('over');
   const f = e.dataTransfer.files[0];
-  if (f) { selectedFile = f; document.getElementById('dropName').textContent = '📎 ' + f.name; }
+  if (!f) return;
+  if (f.size > MAX_SIZE_BYTES) {
+    resp('uploadResp', `❌ File too large — maximum allowed size is ${MAX_SIZE_MB} MB.`, 'err');
+    return;
+  }
+  selectedFile = f;
+  document.getElementById('dropName').textContent = '📎 ' + f.name;
 });
 new QRCode(document.getElementById('qrcode'), { text: window.location.href, width: 120, height: 120 });
