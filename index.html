@@ -91,6 +91,34 @@
           <span>3.</span> Enter the 6-digit code shown in the app
         </div>
         <div id="qrSetup" class="qr-setup-wrap"></div>
+
+        <!-- SECRET KEY (for manual entry) -->
+        <div id="mfaSecretBox" style="display:none; margin-top:16px; text-align:center;">
+          <p style="font-size:13px; color:#888; margin-bottom:6px;">
+            Can't scan the QR code? Enter this key manually in your authenticator app:
+          </p>
+          <div
+            id="mfaSecret"
+            onclick="navigator.clipboard.writeText(this.textContent); this.style.opacity='0.5'; setTimeout(()=>this.style.opacity='1',800);"
+            title="Click to copy"
+            style="
+              font-family: monospace;
+              font-size: 14px;
+              background: rgba(255,255,255,0.05);
+              border: 1px solid rgba(255,255,255,0.1);
+              padding: 10px 16px;
+              border-radius: 8px;
+              letter-spacing: 3px;
+              word-break: break-all;
+              cursor: pointer;
+              transition: opacity 0.3s;
+              display: inline-block;
+              max-width: 100%;
+            ">
+          </div>
+          <p style="font-size:11px; color:#666; margin-top:6px;">Click the key to copy it</p>
+        </div>
+
         <div class="mfa-wrap">
           <input class="mfa-digit" id="s0" maxlength="1" inputmode="numeric" oninput="mfaNext(this,0,'s')" onkeydown="mfaBack(event,0,'s')" onpaste="mfaPaste(event,'s')"/>
           <input class="mfa-digit" id="s1" maxlength="1" inputmode="numeric" oninput="mfaNext(this,1,'s')" onkeydown="mfaBack(event,1,'s')" onpaste="mfaPaste(event,'s')"/>
@@ -220,6 +248,7 @@
       <div class="files-list" id="filesList"></div>
     </div>
   </div>
+
   <!-- STEP 4: LOGOUT -->
   <div class="card">
     <div class="card-head" onclick="toggle('logout')">
