@@ -113,6 +113,8 @@ async function login() {
       const otpUrl = `otpauth://totp/FoxShare:${encodeURIComponent(identifier)}?secret=${secret}&issuer=FoxShare`;
       document.getElementById('qrSetup').innerHTML = '';
       new QRCode(document.getElementById('qrSetup'), { text: otpUrl, width: 160, height: 160 });
+      document.getElementById('mfaSecret').textContent = secret;
+      document.getElementById('mfaSecretBox').style.display = 'block';
       clearCode('s'); document.getElementById('s0').focus();
       setStatus('Scan QR code to set up MFA', 'warn');
 
