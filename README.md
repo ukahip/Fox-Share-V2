@@ -6,9 +6,9 @@
 ![MFA](https://img.shields.io/badge/Auth-MFA%20Required-blue?style=flat)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 
-FoxShare is a secure, serverless file vault built on AWS. Files are encrypted at rest using AWS KMS, protected in transit with HTTPS and HSTS, and access is gated behind Cognito MFA authentication. Built as an AltSchool Africa Cloud Security capstone project.
+FoxShare is a secure, serverless file vault built on AWS. Files are encrypted at rest using AWS KMS, protected in transit with HTTPS and HSTS, and access is gated behind Cognito MFA authentication. Built as a cloud security portfolio project demonstrating defense-in-depth on AWS.
 
----
+-----
 
 ## 📸 Architecture
 
@@ -21,7 +21,7 @@ User → Vercel Frontend → Cognito MFA → API Gateway (JWT) → Lambda → S3
 **Public Zone:** User Browser, Vercel Frontend, AWS Cognito, API Gateway  
 **Private Zone:** AWS Lambda, Amazon S3, AWS KMS, CloudTrail, CloudWatch
 
----
+-----
 
 ## 🔐 Security Features
 
@@ -36,22 +36,22 @@ User → Vercel Frontend → Cognito MFA → API Gateway (JWT) → Lambda → S3
 - **Audit Logging** — CloudTrail logs all S3 and KMS events with CloudWatch alerting
 - **OWASP ZAP Validated** — Reduced from 12 alerts to informational only
 
----
+-----
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Vanilla HTML, CSS, JavaScript |
-| Hosting | Vercel (Serverless Functions) |
-| Authentication | AWS Cognito (MFA / TOTP) |
-| API | AWS API Gateway (REST) |
-| Backend | AWS Lambda (Python) |
-| Storage | Amazon S3 (Private Bucket) |
-| Encryption | AWS KMS (Customer Managed Key) |
-| Audit | AWS CloudTrail + CloudWatch |
+|Layer         |Technology                    |
+|--------------|------------------------------|
+|Frontend      |Vanilla HTML, CSS, JavaScript |
+|Hosting       |Vercel (Serverless Functions) |
+|Authentication|AWS Cognito (MFA / TOTP)      |
+|API           |AWS API Gateway (REST)        |
+|Backend       |AWS Lambda (Python)           |
+|Storage       |Amazon S3 (Private Bucket)    |
+|Encryption    |AWS KMS (Customer Managed Key)|
+|Audit         |AWS CloudTrail + CloudWatch   |
 
----
+-----
 
 ## 📁 Project Structure
 
@@ -73,24 +73,25 @@ foxshare/
     └── share_file.py     # Generate shareable presigned URL
 ```
 
----
+-----
 
 ## ⚙️ Environment Variables
 
 Set these in your Vercel project dashboard under **Settings → Environment Variables**:
 
-| Variable | Description |
-|---|---|
-| `POOL_ID` | Cognito User Pool ID e.g. `us-east-1_xxxxxxxxx` |
-| `CLIENT_ID` | Cognito App Client ID |
-| `API_URL` | API Gateway Invoke URL ending in `/Prod` |
-| `ALLOWED_ORIGIN` | Your Vercel deployment URL e.g. `https://foxshare.vercel.app` |
+|Variable        |Description                                                  |
+|----------------|-------------------------------------------------------------|
+|`POOL_ID`       |Cognito User Pool ID e.g. `your-region_xxxxxxxxx`            |
+|`CLIENT_ID`     |Cognito App Client ID                                        |
+|`API_URL`       |API Gateway Invoke URL ending in `/Prod`                     |
+|`ALLOWED_ORIGIN`|Your Vercel deployment URL e.g. `https://your-app.vercel.app`|
 
----
+-----
 
 ## 🚀 Deployment
 
 ### Prerequisites
+
 - AWS Account
 - Vercel Account
 - Node.js 20.x
@@ -98,16 +99,18 @@ Set these in your Vercel project dashboard under **Settings → Environment Vari
 ### Step 1 — AWS Setup
 
 **Cognito User Pool**
-1. Create a User Pool named `Fox-Share-Users`
-2. Enable email sign-in
-3. Set MFA to **Required** — Authenticator apps only
-4. Create an App Client with `ALLOW_USER_PASSWORD_AUTH`, no client secret
+
+1. Create a User Pool named `your-user-pool-name`
+1. Enable email sign-in
+1. Set MFA to **Required** — Authenticator apps only
+1. Create an App Client with `ALLOW_USER_PASSWORD_AUTH`, no client secret
 
 **S3 Bucket**
-1. Create a private bucket e.g. `fox-shares-bucket`
-2. Block all public access
-3. Enable default encryption → SSE-KMS → select your KMS key
-4. Add HTTPS-only bucket policy:
+
+1. Create a private bucket e.g. `your-bucket-name`
+1. Block all public access
+1. Enable default encryption → SSE-KMS → select your KMS key
+1. Add HTTPS-only bucket policy:
 
 ```json
 {
@@ -118,8 +121,8 @@ Set these in your Vercel project dashboard under **Settings → Environment Vari
       "Principal": "*",
       "Action": "s3:*",
       "Resource": [
-        "arn:aws:s3:::fox-shares-bucket",
-        "arn:aws:s3:::fox-shares-bucket/*"
+        "arn:aws:s3:::your-bucket-name",
+        "arn:aws:s3:::your-bucket-name/*"
       ],
       "Condition": {
         "Bool": { "aws:SecureTransport": "false" }
@@ -130,27 +133,29 @@ Set these in your Vercel project dashboard under **Settings → Environment Vari
 ```
 
 **KMS Key**
+
 1. Create a Customer Managed Key
-2. Enable automatic key rotation
-3. Restrict key usage to your Lambda execution role only
+1. Enable automatic key rotation
+1. Restrict key usage to your Lambda execution role only
 
 **API Gateway**
+
 1. Create a REST API
-2. Add a Cognito Authorizer pointing to your User Pool
-3. Create resource paths: `/files`, `/files/upload`, `/files/download`, `/files/list`, `/files/delete`, `/files/share`
-4. Deploy to a stage named `Prod`
+1. Add a Cognito Authorizer pointing to your User Pool
+1. Create resource paths: `/files`, `/files/upload`, `/files/download`, `/files/list`, `/files/delete`, `/files/share`
+1. Deploy to a stage named `Prod`
 
 ### Step 2 — Deploy to Vercel
 
 ```bash
-git clone https://github.com/ukahip/FOX-SHARE-V2.git
-cd FOX-SHARE-V2
+git clone https://github.com/your-github-username/your-repo-name.git
+cd your-repo-name
 vercel deploy
 ```
 
 Add all four environment variables in the Vercel dashboard and redeploy.
 
----
+-----
 
 ## 🐍 Lambda Functions (Python)
 
@@ -171,8 +176,8 @@ All Lambda functions share an execution role with these permissions:
         "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::fox-shares-bucket",
-        "arn:aws:s3:::fox-shares-bucket/*"
+        "arn:aws:s3:::your-bucket-name",
+        "arn:aws:s3:::your-bucket-name/*"
       ]
     },
     {
@@ -181,13 +186,13 @@ All Lambda functions share an execution role with these permissions:
         "kms:GenerateDataKey",
         "kms:Decrypt"
       ],
-      "Resource": "arn:aws:kms:us-east-1:YOUR_ACCOUNT_ID:key/YOUR_KEY_ID"
+      "Resource": "arn:aws:kms:your-region:your-account-id:key/your-kms-key-id"
     }
   ]
 }
 ```
 
----
+-----
 
 ### upload.py — Generate Presigned POST URL
 
@@ -201,7 +206,7 @@ from botocore.exceptions import ClientError
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
 URL_EXPIRY  = int(os.environ.get('URL_EXPIRY', 900))  # 15 minutes
 
 
@@ -277,7 +282,7 @@ def lambda_handler(event, context):
         }
 ```
 
----
+-----
 
 ### download.py — Generate Presigned GET URL
 
@@ -291,7 +296,7 @@ from botocore.exceptions import ClientError
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
 URL_EXPIRY  = int(os.environ.get('URL_EXPIRY', 900))  # 15 minutes
 
 
@@ -353,7 +358,7 @@ def lambda_handler(event, context):
         }
 ```
 
----
+-----
 
 ### list_files.py — List User Files
 
@@ -367,7 +372,7 @@ from botocore.exceptions import ClientError
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
 
 
 def lambda_handler(event, context):
@@ -422,7 +427,7 @@ def lambda_handler(event, context):
         }
 ```
 
----
+-----
 
 ### delete_file.py — Delete a File
 
@@ -436,7 +441,7 @@ from botocore.exceptions import ClientError
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
 
 
 def lambda_handler(event, context):
@@ -493,11 +498,11 @@ def lambda_handler(event, context):
         }
 ```
 
----
+-----
 
 ### share_file.py — Generate Shareable Link
 
-Generates a longer-lived presigned URL for sharing a file with someone who doesn't have a FoxShare account.
+Generates a longer-lived presigned URL for sharing a file with someone who doesn’t have a FoxShare account.
 
 ```python
 import json
@@ -507,7 +512,7 @@ from botocore.exceptions import ClientError
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-BUCKET_NAME  = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+BUCKET_NAME  = os.environ.get('BUCKET_NAME', 'your-bucket-name')
 SHARE_EXPIRY = int(os.environ.get('SHARE_EXPIRY', 3600))  # 1 hour default
 
 
@@ -578,30 +583,35 @@ def lambda_handler(event, context):
         }
 ```
 
----
+-----
 
 ## 🔬 Security Validation
 
 ### Encryption in Transit
+
 ```bash
 # Test SSL rating — should return A or A+
 curl https://api.ssllabs.com/api/v3/analyze?host=your-app.vercel.app
 ```
 
 ### Encryption at Rest
-Check in AWS Console → S3 → fox-shares-bucket → any object → Properties → Server-side encryption should show your KMS key ARN.
+
+Check in AWS Console → S3 → your-bucket-name → any object → Properties → Server-side encryption should show your KMS key ARN.
 
 ### OWASP ZAP
+
 Run OWASP ZAP against the deployed URL. Expected result: 0 medium/high alerts, informational only.
 
 ### CloudTrail Validation
+
 After uploading a file, go to AWS Console → CloudTrail → Event history and filter by:
+
 - Event source: `s3.amazonaws.com` → look for `PutObject`
 - Event source: `kms.amazonaws.com` → look for `GenerateDataKey`
 
 Both should appear confirming encryption is active on every upload.
 
----
+-----
 
 ## 🛡 IAM Read-Only Access for Reviewers
 
@@ -615,7 +625,7 @@ To give colleagues read-only access to review the infrastructure:
       "Sid": "S3ReadOnly",
       "Effect": "Allow",
       "Action": ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetObject"],
-      "Resource": ["arn:aws:s3:::fox-shares-bucket", "arn:aws:s3:::fox-shares-bucket/*"]
+      "Resource": ["arn:aws:s3:::your-bucket-name", "arn:aws:s3:::your-bucket-name/*"]
     },
     {
       "Sid": "LambdaReadOnly",
@@ -645,23 +655,23 @@ To give colleagues read-only access to review the infrastructure:
 }
 ```
 
----
+-----
 
 ## 📊 Threat Model
 
-| Threat | Mitigation |
-|---|---|
-| MITM Attack | HSTS preload + TLS 1.2+ + S3 HTTPS-only policy |
-| Brute Force | Cognito lockout + MFA required |
-| Token Theft | JWT in memory only, 1hr expiry |
-| XSS | CSP blocks unauthorized scripts |
-| Clickjacking | X-Frame-Options: DENY |
-| CORS Abuse | ALLOWED_ORIGIN validation |
-| Presigned URL Abuse | 15-minute expiry |
-| S3 Enumeration | Keys scoped to Cognito sub prefix |
-| Unauthorized File Access | Ownership check in every Lambda |
+|Threat                  |Mitigation                                    |
+|------------------------|----------------------------------------------|
+|MITM Attack             |HSTS preload + TLS 1.2+ + S3 HTTPS-only policy|
+|Brute Force             |Cognito lockout + MFA required                |
+|Token Theft             |JWT in memory only, 1hr expiry                |
+|XSS                     |CSP blocks unauthorized scripts               |
+|Clickjacking            |X-Frame-Options: DENY                         |
+|CORS Abuse              |ALLOWED_ORIGIN validation                     |
+|Presigned URL Abuse     |15-minute expiry                              |
+|S3 Enumeration          |Keys scoped to Cognito sub prefix             |
+|Unauthorized File Access|Ownership check in every Lambda               |
 
----
+-----
 
 ## 🗺 Roadmap
 
@@ -673,10 +683,16 @@ To give colleagues read-only access to review the infrastructure:
 - [ ] WAF integration for API Gateway
 - [ ] Move to eu-west-1 for lower latency from Africa
 
----
+-----
 
 ## 👨🏾‍💻 Author
 
 **Paul Ikechukwu Ukah (Orion)**  
 Cloud & Security Engineer  
 GitHub: [@ukahip](https://github.com/ukahip)
+
+-----
+
+## 📄 License
+
+MIT License — see <LICENSE> for details.
