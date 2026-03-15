@@ -680,9 +680,3 @@ To give colleagues read-only access to review the infrastructure:
 **Paul Ikechukwu Ukah (Orion)**  
 Cloud & Security Engineer  
 GitHub: [@ukahip](https://github.com/ukahip)
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
