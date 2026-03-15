@@ -1,133 +1,162 @@
-# 🦊 FoxShare — Complete Setup Guide
-**From AWS to Vercel**
-*Last updated: March 2026*
+# 🦊 FoxShare — Secure Serverless File Vault
+
+![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=flat&logo=amazonaws)
+![Vercel](https://img.shields.io/badge/Deployed-Vercel-000000?style=flat&logo=vercel)
+![Security](https://img.shields.io/badge/Security-OWASP%20Validated-4CAF50?style=flat)
+![MFA](https://img.shields.io/badge/Auth-MFA%20Required-blue?style=flat)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+
+FoxShare is a secure, serverless file vault built on AWS. Files are encrypted at rest using AWS KMS, protected in transit with HTTPS and HSTS, and access is gated behind Cognito MFA authentication. Built as an AltSchool Africa Cloud Security capstone project.
 
 ---
 
-## Overview
+## 📸 Architecture
 
-FoxShare is a secure, encrypted file vault built on:
-
-| Layer | Service |
-|---|---|
-| Frontend | Vercel (static HTML + API proxy) |
-| Authentication | AWS Cognito (MFA enabled) |
-| File Storage | AWS S3 (KMS encrypted) |
-| Backend Logic | AWS Lambda + API Gateway |
-| Encryption | AWS KMS |
-
----
-
-## Prerequisites
-
-- AWS account with admin access
-- Vercel account (free tier works)
-- Node.js installed locally (for Vercel CLI)
-- FoxShare zip file (`foxshare-v3-fixed.zip`)
-
----
-
-## Part 1 — AWS KMS (Encryption Key)
-
-### 1.1 Create a KMS Key
-
-1. Go to **AWS Console → KMS → Customer managed keys**
-2. Click **Create key**
-3. Key type: **Symmetric**
-4. Key usage: **Encrypt and decrypt**
-5. Give it an alias e.g. `foxshare-key`
-6. Set key administrators (your IAM user)
-7. Set key users — add the Lambda execution role (you'll create this later, come back and add it)
-8. Click **Finish**
-9. Copy the **Key ARN** — you'll need it later
-
----
-
-## Part 2 — AWS S3 (File Storage)
-
-### 2.1 Create the S3 Bucket
-
-1. Go to **AWS Console → S3 → Create bucket**
-2. Give it a name e.g. `foxshare-files`
-3. Region: choose your preferred region (remember it — use the same region for everything)
-4. **Block all public access** — leave this ON (files are served via presigned URLs only)
-5. Enable **Bucket Versioning** (optional but recommended)
-6. Under **Default encryption**:
-   - Encryption type: **SSE-KMS**
-   - AWS KMS key: select the key you created in Part 1
-7. Click **Create bucket**
-
-### 2.2 Configure CORS on the Bucket
-
-1. Open your bucket → **Permissions** tab → **Cross-origin resource sharing (CORS)**
-2. Click **Edit** and paste:
-
-```json
-[
-  {
-    "AllowedHeaders": ["*"],
-    "AllowedMethods": ["GET", "POST", "PUT"],
-    "AllowedOrigins": ["*"],
-    "ExposeHeaders": ["ETag", "Content-Disposition", "Content-Length", "Content-Type"]
-  }
-]
+```
+User → Vercel Frontend → Cognito MFA → API Gateway (JWT) → Lambda → S3 (KMS)
+                                                                         ↓
+                                                               CloudTrail → CloudWatch
 ```
 
-3. Click **Save changes**
-
-> ⚠️ The `ExposeHeaders` list is critical — without `Content-Disposition`, downloads will redirect away from the app instead of saving silently.
-
----
-
-## Part 3 — AWS Cognito (Authentication + MFA)
-
-### 3.1 Create a User Pool
-
-1. Go to **AWS Console → Cognito → User pools → Create user pool**
-2. **Sign-in options:** select **Email**
-3. Click **Next**
-4. **Password policy:** set minimum 8 characters, require numbers and symbols
-5. **MFA:** select **Required** → **Authenticator apps (TOTP)**
-6. Click **Next**
-7. **Self-service sign-up:** enable it
-8. **Required attributes:** add `email`
-9. **Optional attributes:** add `preferred_username` (used as display name)
-10. Click **Next** through email settings (use Cognito's default email sender for now)
-11. **User pool name:** e.g. `foxshare-users`
-12. Click **Next**
-
-### 3.2 Create an App Client
-
-1. Still in the User Pool setup → **App clients**
-2. Click **Add an app client**
-3. App type: **Public client**
-4. App client name: e.g. `foxshare-web`
-5. **Authentication flows:** enable `ALLOW_USER_PASSWORD_AUTH` and `ALLOW_REFRESH_TOKEN_AUTH`
-6. **No client secret** (public client)
-7. Click **Create user pool**
-
-### 3.3 Copy Your IDs
-
-From the User Pool dashboard, copy:
-- **User Pool ID** — looks like `us-east-1_xxxxxxxxx` → this is your `POOL_ID`
-- **App client ID** — from the App clients tab → this is your `CLIENT_ID`
+**Public Zone:** User Browser, Vercel Frontend, AWS Cognito, API Gateway  
+**Private Zone:** AWS Lambda, Amazon S3, AWS KMS, CloudTrail, CloudWatch
 
 ---
 
-## Part 4 — AWS IAM (Lambda Execution Role)
+## 🔐 Security Features
 
-### 4.1 Create the Lambda Role
+- **MFA Required** — TOTP authenticator app via AWS Cognito (Google Authenticator / Authy)
+- **JWT Authorization** — API Gateway validates Cognito-signed tokens before Lambda runs
+- **Encryption at Rest** — SSE-KMS with customer-managed key, annual rotation enabled
+- **Encryption in Transit** — TLS 1.2+, HSTS preload, S3 HTTPS-only bucket policy
+- **Presigned URLs** — Files never pass through the server; direct browser ↔ S3 transfer
+- **Security Headers** — CSP, X-Frame-Options, HSTS, X-Content-Type-Options
+- **CORS Lockdown** — Origin validation via `ALLOWED_ORIGIN` environment variable
+- **Token Storage** — JWT held in JS memory only, never localStorage or cookies
+- **Audit Logging** — CloudTrail logs all S3 and KMS events with CloudWatch alerting
+- **OWASP ZAP Validated** — Reduced from 12 alerts to informational only
 
-1. Go to **AWS Console → IAM → Roles → Create role**
-2. Trusted entity: **AWS service → Lambda**
-3. Attach these policies:
-   - `AWSLambdaBasicExecutionRole` (for CloudWatch logs)
-   - Create a custom inline policy (see below)
-4. Name the role e.g. `foxshare-lambda-role`
+---
 
-### 4.2 Custom Inline Policy
+## 🛠 Tech Stack
 
-Click **Add inline policy** and paste:
+| Layer | Technology |
+|---|---|
+| Frontend | Vanilla HTML, CSS, JavaScript |
+| Hosting | Vercel (Serverless Functions) |
+| Authentication | AWS Cognito (MFA / TOTP) |
+| API | AWS API Gateway (REST) |
+| Backend | AWS Lambda (Python) |
+| Storage | Amazon S3 (Private Bucket) |
+| Encryption | AWS KMS (Customer Managed Key) |
+| Audit | AWS CloudTrail + CloudWatch |
+
+---
+
+## 📁 Project Structure
+
+```
+foxshare/
+├── api/
+│   ├── cognito.js        # Vercel proxy — Cognito auth calls
+│   └── files.js          # Vercel proxy — API Gateway file calls
+├── index.html            # Frontend markup
+├── style.css             # Styles
+├── app.js                # Frontend logic
+├── package.json          # Node.js config
+├── vercel.json           # Vercel config + security headers
+└── lambda/
+    ├── upload.py         # Generate presigned S3 POST URL
+    ├── download.py       # Generate presigned S3 GET URL
+    ├── list_files.py     # List user's files in S3
+    ├── delete_file.py    # Delete a file from S3
+    └── share_file.py     # Generate shareable presigned URL
+```
+
+---
+
+## ⚙️ Environment Variables
+
+Set these in your Vercel project dashboard under **Settings → Environment Variables**:
+
+| Variable | Description |
+|---|---|
+| `POOL_ID` | Cognito User Pool ID e.g. `us-east-1_xxxxxxxxx` |
+| `CLIENT_ID` | Cognito App Client ID |
+| `API_URL` | API Gateway Invoke URL ending in `/Prod` |
+| `ALLOWED_ORIGIN` | Your Vercel deployment URL e.g. `https://foxshare.vercel.app` |
+
+---
+
+## 🚀 Deployment
+
+### Prerequisites
+- AWS Account
+- Vercel Account
+- Node.js 20.x
+
+### Step 1 — AWS Setup
+
+**Cognito User Pool**
+1. Create a User Pool named `Fox-Share-Users`
+2. Enable email sign-in
+3. Set MFA to **Required** — Authenticator apps only
+4. Create an App Client with `ALLOW_USER_PASSWORD_AUTH`, no client secret
+
+**S3 Bucket**
+1. Create a private bucket e.g. `fox-shares-bucket`
+2. Block all public access
+3. Enable default encryption → SSE-KMS → select your KMS key
+4. Add HTTPS-only bucket policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::fox-shares-bucket",
+        "arn:aws:s3:::fox-shares-bucket/*"
+      ],
+      "Condition": {
+        "Bool": { "aws:SecureTransport": "false" }
+      }
+    }
+  ]
+}
+```
+
+**KMS Key**
+1. Create a Customer Managed Key
+2. Enable automatic key rotation
+3. Restrict key usage to your Lambda execution role only
+
+**API Gateway**
+1. Create a REST API
+2. Add a Cognito Authorizer pointing to your User Pool
+3. Create resource paths: `/files`, `/files/upload`, `/files/download`, `/files/list`, `/files/delete`, `/files/share`
+4. Deploy to a stage named `Prod`
+
+### Step 2 — Deploy to Vercel
+
+```bash
+git clone https://github.com/ukahip/FOX-SHARE-V2.git
+cd FOX-SHARE-V2
+vercel deploy
+```
+
+Add all four environment variables in the Vercel dashboard and redeploy.
+
+---
+
+## 🐍 Lambda Functions (Python)
+
+### IAM Execution Role
+
+All Lambda functions share an execution role with these permissions:
 
 ```json
 {
@@ -139,274 +168,521 @@ Click **Add inline policy** and paste:
         "s3:PutObject",
         "s3:GetObject",
         "s3:DeleteObject",
-        "s3:ListBucket",
-        "s3:GeneratePresignedUrl"
+        "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::YOUR-BUCKET-NAME",
-        "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+        "arn:aws:s3:::fox-shares-bucket",
+        "arn:aws:s3:::fox-shares-bucket/*"
       ]
     },
     {
       "Effect": "Allow",
       "Action": [
         "kms:GenerateDataKey",
-        "kms:Decrypt",
-        "kms:DescribeKey"
+        "kms:Decrypt"
       ],
-      "Resource": "YOUR-KMS-KEY-ARN"
+      "Resource": "arn:aws:kms:us-east-1:YOUR_ACCOUNT_ID:key/YOUR_KEY_ID"
     }
   ]
 }
 ```
 
-Replace `YOUR-BUCKET-NAME` and `YOUR-KMS-KEY-ARN` with your actual values.
+---
 
-5. Now go back to KMS → your key → **Key users** → add this Lambda role
+### upload.py — Generate Presigned POST URL
+
+Generates a short-lived presigned POST URL so the browser can upload directly to S3, bypassing the Vercel 4.5MB body limit.
+
+```python
+import json
+import boto3
+import os
+from botocore.exceptions import ClientError
+
+s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+URL_EXPIRY  = int(os.environ.get('URL_EXPIRY', 900))  # 15 minutes
+
+
+def lambda_handler(event, context):
+    headers = {
+        'Access-Control-Allow-Origin':  os.environ.get('ALLOWED_ORIGIN', ''),
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Content-Type': 'application/json',
+    }
+
+    if event.get('httpMethod') == 'OPTIONS':
+        return {'statusCode': 200, 'headers': headers, 'body': ''}
+
+    try:
+        # Extract authenticated user ID from Cognito JWT claims
+        claims   = event['requestContext']['authorizer']['claims']
+        user_sub = claims['sub']  # Unique Cognito user ID
+
+        body     = json.loads(event.get('body', '{}'))
+        filename = body.get('filename', '')
+
+        if not filename:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'filename is required'})
+            }
+
+        # Sanitize filename — strip path traversal attempts
+        filename = os.path.basename(filename).replace('..', '')
+        if not filename:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid filename'})
+            }
+
+        # Scope S3 key to the authenticated user — prevents cross-user access
+        s3_key = f"{user_sub}/{filename}"
+
+        # Generate presigned POST — browser uploads directly to S3
+        presigned = s3_client.generate_presigned_post(
+            Bucket     = BUCKET_NAME,
+            Key        = s3_key,
+            Conditions = [
+                ['content-length-range', 1, 104857600],  # 1 byte to 100 MB
+            ],
+            ExpiresIn = URL_EXPIRY
+        )
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'url':    presigned['url'],
+                'fields': presigned['fields'],
+                's3_key': s3_key
+            })
+        }
+
+    except KeyError as e:
+        return {
+            'statusCode': 401,
+            'headers': headers,
+            'body': json.dumps({'error': f'Unauthorized: missing claim {str(e)}'})
+        }
+    except ClientError as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'AWS error: {e.response["Error"]["Message"]}'})
+        }
+```
 
 ---
 
-## Part 5 — AWS Lambda Functions
+### download.py — Generate Presigned GET URL
 
-You need **4 Lambda functions**. Each uses the same execution role from Part 4.
+Generates a presigned GET URL so the browser can download a file directly from S3.
 
-Go to **AWS Console → Lambda → Create function** for each one:
-- Runtime: **Python 3.12**
-- Execution role: select the role from Part 4
+```python
+import json
+import boto3
+import os
+from botocore.exceptions import ClientError
 
-### Environment Variables (set on each Lambda)
+s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-| Variable | Value |
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+URL_EXPIRY  = int(os.environ.get('URL_EXPIRY', 900))  # 15 minutes
+
+
+def lambda_handler(event, context):
+    headers = {
+        'Access-Control-Allow-Origin':  os.environ.get('ALLOWED_ORIGIN', ''),
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Content-Type': 'application/json',
+    }
+
+    if event.get('httpMethod') == 'OPTIONS':
+        return {'statusCode': 200, 'headers': headers, 'body': ''}
+
+    try:
+        claims   = event['requestContext']['authorizer']['claims']
+        user_sub = claims['sub']
+
+        s3_key = event.get('queryStringParameters', {}).get('s3_key', '')
+
+        if not s3_key:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 's3_key is required'})
+            }
+
+        # Enforce that the user can only access their own files
+        if not s3_key.startswith(f"{user_sub}/"):
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Forbidden — access denied'})
+            }
+
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params    = {'Bucket': BUCKET_NAME, 'Key': s3_key},
+            ExpiresIn = URL_EXPIRY
+        )
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({'download_url': presigned_url})
+        }
+
+    except KeyError as e:
+        return {
+            'statusCode': 401,
+            'headers': headers,
+            'body': json.dumps({'error': f'Unauthorized: {str(e)}'})
+        }
+    except ClientError as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'AWS error: {e.response["Error"]["Message"]}'})
+        }
+```
+
+---
+
+### list_files.py — List User Files
+
+Lists all files belonging to the authenticated user by filtering on their Cognito `sub` prefix.
+
+```python
+import json
+import boto3
+import os
+from botocore.exceptions import ClientError
+
+s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+
+
+def lambda_handler(event, context):
+    headers = {
+        'Access-Control-Allow-Origin':  os.environ.get('ALLOWED_ORIGIN', ''),
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Content-Type': 'application/json',
+    }
+
+    if event.get('httpMethod') == 'OPTIONS':
+        return {'statusCode': 200, 'headers': headers, 'body': ''}
+
+    try:
+        claims   = event['requestContext']['authorizer']['claims']
+        user_sub = claims['sub']
+
+        # List only objects under the user's prefix — no cross-user access possible
+        response = s3_client.list_objects_v2(
+            Bucket = BUCKET_NAME,
+            Prefix = f"{user_sub}/"
+        )
+
+        files = []
+        for obj in response.get('Contents', []):
+            key      = obj['Key']
+            filename = key.replace(f"{user_sub}/", '', 1)
+            files.append({
+                'key':           key,
+                'filename':      filename,
+                'size':          obj['Size'],
+                'last_modified': obj['LastModified'].isoformat()
+            })
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({'files': files})
+        }
+
+    except KeyError as e:
+        return {
+            'statusCode': 401,
+            'headers': headers,
+            'body': json.dumps({'error': f'Unauthorized: {str(e)}'})
+        }
+    except ClientError as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'AWS error: {e.response["Error"]["Message"]}'})
+        }
+```
+
+---
+
+### delete_file.py — Delete a File
+
+Deletes a file from S3, enforcing that users can only delete their own files.
+
+```python
+import json
+import boto3
+import os
+from botocore.exceptions import ClientError
+
+s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+
+
+def lambda_handler(event, context):
+    headers = {
+        'Access-Control-Allow-Origin':  os.environ.get('ALLOWED_ORIGIN', ''),
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
+        'Content-Type': 'application/json',
+    }
+
+    if event.get('httpMethod') == 'OPTIONS':
+        return {'statusCode': 200, 'headers': headers, 'body': ''}
+
+    try:
+        claims   = event['requestContext']['authorizer']['claims']
+        user_sub = claims['sub']
+
+        s3_key = event.get('queryStringParameters', {}).get('s3_key', '')
+
+        if not s3_key:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 's3_key is required'})
+            }
+
+        # Enforce ownership — user can only delete their own files
+        if not s3_key.startswith(f"{user_sub}/"):
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Forbidden — access denied'})
+            }
+
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({'message': f'{s3_key} deleted successfully'})
+        }
+
+    except KeyError as e:
+        return {
+            'statusCode': 401,
+            'headers': headers,
+            'body': json.dumps({'error': f'Unauthorized: {str(e)}'})
+        }
+    except ClientError as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'AWS error: {e.response["Error"]["Message"]}'})
+        }
+```
+
+---
+
+### share_file.py — Generate Shareable Link
+
+Generates a longer-lived presigned URL for sharing a file with someone who doesn't have a FoxShare account.
+
+```python
+import json
+import boto3
+import os
+from botocore.exceptions import ClientError
+
+s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+BUCKET_NAME  = os.environ.get('BUCKET_NAME', 'fox-shares-bucket')
+SHARE_EXPIRY = int(os.environ.get('SHARE_EXPIRY', 3600))  # 1 hour default
+
+
+def lambda_handler(event, context):
+    headers = {
+        'Access-Control-Allow-Origin':  os.environ.get('ALLOWED_ORIGIN', ''),
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Content-Type': 'application/json',
+    }
+
+    if event.get('httpMethod') == 'OPTIONS':
+        return {'statusCode': 200, 'headers': headers, 'body': ''}
+
+    try:
+        claims   = event['requestContext']['authorizer']['claims']
+        user_sub = claims['sub']
+
+        params = event.get('queryStringParameters') or {}
+        s3_key  = params.get('s3_key', '')
+        expiry  = int(params.get('expiry', SHARE_EXPIRY))
+
+        # Cap expiry at 24 hours max
+        expiry = min(expiry, 86400)
+
+        if not s3_key:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 's3_key is required'})
+            }
+
+        # Enforce ownership
+        if not s3_key.startswith(f"{user_sub}/"):
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Forbidden — access denied'})
+            }
+
+        share_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params    = {'Bucket': BUCKET_NAME, 'Key': s3_key},
+            ExpiresIn = expiry
+        )
+
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'share_url':  share_url,
+                'expires_in': expiry,
+                'note':       'This link expires and cannot be extended.'
+            })
+        }
+
+    except KeyError as e:
+        return {
+            'statusCode': 401,
+            'headers': headers,
+            'body': json.dumps({'error': f'Unauthorized: {str(e)}'})
+        }
+    except ClientError as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'AWS error: {e.response["Error"]["Message"]}'})
+        }
+```
+
+---
+
+## 🔬 Security Validation
+
+### Encryption in Transit
+```bash
+# Test SSL rating — should return A or A+
+curl https://api.ssllabs.com/api/v3/analyze?host=your-app.vercel.app
+```
+
+### Encryption at Rest
+Check in AWS Console → S3 → fox-shares-bucket → any object → Properties → Server-side encryption should show your KMS key ARN.
+
+### OWASP ZAP
+Run OWASP ZAP against the deployed URL. Expected result: 0 medium/high alerts, informational only.
+
+### CloudTrail Validation
+After uploading a file, go to AWS Console → CloudTrail → Event history and filter by:
+- Event source: `s3.amazonaws.com` → look for `PutObject`
+- Event source: `kms.amazonaws.com` → look for `GenerateDataKey`
+
+Both should appear confirming encryption is active on every upload.
+
+---
+
+## 🛡 IAM Read-Only Access for Reviewers
+
+To give colleagues read-only access to review the infrastructure:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3ReadOnly",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetObject"],
+      "Resource": ["arn:aws:s3:::fox-shares-bucket", "arn:aws:s3:::fox-shares-bucket/*"]
+    },
+    {
+      "Sid": "LambdaReadOnly",
+      "Effect": "Allow",
+      "Action": ["lambda:ListFunctions", "lambda:GetFunctionConfiguration"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchReadOnly",
+      "Effect": "Allow",
+      "Action": ["logs:DescribeLogGroups", "logs:GetLogEvents", "cloudwatch:DescribeAlarms"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudTrailReadOnly",
+      "Effect": "Allow",
+      "Action": ["cloudtrail:LookupEvents", "cloudtrail:GetTrail", "cloudtrail:DescribeTrails"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CognitoReadOnly",
+      "Effect": "Allow",
+      "Action": ["cognito-idp:DescribeUserPool", "cognito-idp:ListUsers", "cognito-idp:GetUserPoolMfaConfig"],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+---
+
+## 📊 Threat Model
+
+| Threat | Mitigation |
 |---|---|
-| `BUCKET_NAME` | Your S3 bucket name |
-| `KMS_KEY_ARN` | Your KMS key ARN |
+| MITM Attack | HSTS preload + TLS 1.2+ + S3 HTTPS-only policy |
+| Brute Force | Cognito lockout + MFA required |
+| Token Theft | JWT in memory only, 1hr expiry |
+| XSS | CSP blocks unauthorized scripts |
+| Clickjacking | X-Frame-Options: DENY |
+| CORS Abuse | ALLOWED_ORIGIN validation |
+| Presigned URL Abuse | 15-minute expiry |
+| S3 Enumeration | Keys scoped to Cognito sub prefix |
+| Unauthorized File Access | Ownership check in every Lambda |
 
 ---
 
-### Lambda 1 — File Upload (`fileupload`)
+## 🗺 Roadmap
 
-Handles generating a presigned POST URL for direct S3 uploads.
-
-**Environment variables:** `BUCKET_NAME`, `KMS_KEY_ARN`, `MAX_SIZE` (default `50`)
-
-Paste the upload Lambda code and click **Deploy**.
-
----
-
-### Lambda 2 — File List (`filelist`)
-
-Lists all files belonging to the authenticated user.
-
-**Environment variables:** `BUCKET_NAME`
+- [ ] Client-side encryption using Web Crypto API before upload
+- [ ] Multipart upload for large files
+- [ ] CloudFront CDN for faster global access
+- [ ] File versioning via S3 versioning
+- [ ] Role-based access (admin / viewer)
+- [ ] WAF integration for API Gateway
+- [ ] Move to eu-west-1 for lower latency from Africa
 
 ---
 
-### Lambda 3 — File Share / Download (`fileshare`)
+## 👨🏾‍💻 Author
 
-Generates presigned URLs for downloading and sharing files.
-
-**Environment variables:** `BUCKET_NAME`, `SHARE_EXPIRY_HOURS` (default `24`)
-
-> ⚠️ This Lambda must return both `download_url` (with `ResponseContentDisposition: attachment`) and `share_url` (TinyURL shortened). See the patched `fileshare_lambda.py` included in the zip.
+**Paul Ikechukwu Ukah (Orion)**  
+Cloud & Security Engineer  
+GitHub: [@ukahip](https://github.com/ukahip)
 
 ---
 
-### Lambda 4 — File Delete (`filedelete`)
+## 📄 License
 
-Deletes a file from S3.
-
-**Environment variables:** `BUCKET_NAME`
-
----
-
-## Part 6 — AWS API Gateway
-
-### 6.1 Create the API
-
-1. Go to **AWS Console → API Gateway → Create API**
-2. Choose **REST API** → **Build**
-3. API name: e.g. `foxshare-api`
-4. Click **Create API**
-
-### 6.2 Add Cognito Authorizer
-
-1. In your API → **Authorizers → Create authorizer**
-2. Name: `CognitoAuth`
-3. Type: **Cognito**
-4. Cognito user pool: select the one from Part 3
-5. Token source: `Authorization`
-6. Click **Create**
-
-### 6.3 Create Resources and Methods
-
-Create the following structure:
-
-```
-/files
-  GET     → filelist Lambda    (with CognitoAuth)
-  POST    → fileupload Lambda  (with CognitoAuth)
-  OPTIONS → (CORS mock)
-
-/files/download
-  GET     → fileshare Lambda   (with CognitoAuth)
-  OPTIONS → (CORS mock)
-
-/files/share
-  GET     → fileshare Lambda   (with CognitoAuth)
-  OPTIONS → (CORS mock)
-
-/files/delete
-  DELETE  → filedelete Lambda  (with CognitoAuth)
-  OPTIONS → (CORS mock)
-```
-
-For each method:
-1. Click the method → **Integration type: Lambda Function**
-2. Select the correct Lambda
-3. Check **Use Lambda Proxy integration**
-4. Set the **Authorization** to `CognitoAuth`
-
-For each `OPTIONS` method:
-1. Integration type: **Mock**
-2. After creating, add these response headers to the method response:
-   - `Access-Control-Allow-Origin`
-   - `Access-Control-Allow-Headers`
-   - `Access-Control-Allow-Methods`
-3. In the Integration Response, map them to:
-   - `'*'`
-   - `'Content-Type,Authorization'`
-   - `'OPTIONS,GET,POST,DELETE'`
-
-### 6.4 Enable CORS on Each Resource
-
-For each resource (`/files`, `/files/download`, etc.):
-1. Click the resource → **Actions → Enable CORS**
-2. Leave defaults and click **Enable CORS and replace existing CORS headers**
-
-### 6.5 Deploy the API
-
-1. **Actions → Deploy API**
-2. Stage: **New stage** → name it `prod`
-3. Click **Deploy**
-4. Copy the **Invoke URL** — looks like:
-   `https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod`
-   This is your `API_URL`
-
----
-
-## Part 7 — Vercel Deployment
-
-### 7.1 Install Vercel CLI
-
-```bash
-npm install -g vercel
-```
-
-### 7.2 Unzip and Deploy
-
-```bash
-unzip foxshare-v3-fixed.zip
-cd foxshare-v3-fixed
-vercel --prod
-```
-
-Follow the prompts — log in, create a new project, and deploy.
-
-### 7.3 Set Environment Variables
-
-After deploying, go to **Vercel Dashboard → Your Project → Settings → Environment Variables** and add:
-
-| Variable | Value |
-|---|---|
-| `POOL_ID` | Your Cognito User Pool ID e.g. `us-east-1_xxxxxxxxx` |
-| `CLIENT_ID` | Your Cognito App Client ID |
-| `API_URL` | Your API Gateway Invoke URL e.g. `https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod` |
-
-> ⚠️ `API_URL` must have **no trailing slash**
-
-After adding the variables, **redeploy** for them to take effect:
-
-```bash
-vercel --prod
-```
-
-Or trigger a redeploy from the Vercel dashboard.
-
----
-
-## Part 8 — Verify Everything Works
-
-Go through this checklist after deployment:
-
-- [ ] Sign up with a new email address
-- [ ] Verify email with the 6-digit code sent to your inbox
-- [ ] Log in — you should be prompted to scan a QR code and set up MFA
-- [ ] Scan with Google Authenticator or Authy
-- [ ] Enter the 6-digit code — you should land on the logged-in screen
-- [ ] Upload a small file — confirm success message
-- [ ] Upload a file with spaces in the name — confirm success
-- [ ] Click Refresh My Files — confirm file appears in the list
-- [ ] Click Download — confirm file saves and you stay on the page
-- [ ] Click Share — confirm a share link is generated
-- [ ] Click Delete — confirm file is removed
-- [ ] Click Logout — confirm you return to the login form
-
----
-
-## Architecture Diagram
-
-```
-Browser (Vercel)
-     │
-     ├── /api/cognito  ──────────────────────→  AWS Cognito
-     │       (login, MFA, signup)                (User Pool + MFA)
-     │
-     └── /api/files    ──────────────────────→  API Gateway
-             (proxy)                                  │
-                                              ┌───────┴────────┐
-                                          Lambda           Lambda
-                                         (upload)      (list/share/delete)
-                                              │                │
-                                           S3 + KMS        S3 + KMS
-                                         (encrypted       (encrypted
-                                          storage)         storage)
-```
-
-For uploads, files go **directly from the browser to S3** via presigned POST URL — they never pass through Vercel or Lambda, so there is no size limit imposed by the proxy.
-
-For downloads, files are fetched **directly from S3** via presigned GET URL — same reason, no Lambda/API Gateway size limit applies.
-
----
-
-## Troubleshooting
-
-| Symptom | Likely Cause | Fix |
-|---|---|---|
-| MFA code rejected | Wrong USERNAME in challenge response | Ensure frontend uses `ChallengeParameters.USERNAME` |
-| 502 on download | File too large for API Gateway (10MB limit) | Use presigned S3 URL directly — not the proxy |
-| Download redirects away | No `Content-Disposition` on presigned URL | Add `ResponseContentDisposition` to Lambda |
-| CORS error on download | S3 CORS missing `Content-Disposition` in `ExposeHeaders` | Update S3 CORS config |
-| Upload returns 400 | Wrong content type or missing `file_name` in request body | Check API Gateway integration and Lambda code |
-| Welcome shows UUID | `cognito:username` used instead of `email` | Use `payload['email']` fallback in JWT decode |
-| Env vars not working | Vercel needs redeploy after adding vars | Run `vercel --prod` again after setting vars |
-
----
-
-## Environment Variables Reference
-
-### Vercel
-
-| Variable | Description | Example |
-|---|---|---|
-| `POOL_ID` | Cognito User Pool ID | `us-east-1_aBcDeFgHi` |
-| `CLIENT_ID` | Cognito App Client ID | `1a2b3c4d5e6f7g8h9i0j` |
-| `API_URL` | API Gateway base URL (no trailing slash) | `https://abc123.execute-api.us-east-1.amazonaws.com/prod` |
-
-### Lambda
-
-| Variable | Description | Default |
-|---|---|---|
-| `BUCKET_NAME` | S3 bucket name | — |
-| `KMS_KEY_ARN` | Full ARN of KMS key | — |
-| `MAX_SIZE` | Max upload size in MB | `50` |
-| `SHARE_EXPIRY_HOURS` | Presigned URL expiry in hours | `24` |
+MIT License — see [LICENSE](LICENSE) for details.
