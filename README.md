@@ -688,7 +688,7 @@ To give colleagues read-only access to review the infrastructure:
 ## 👨🏾‍💻 Author
 
 **Paul Ikechukwu Ukah (Orion)**  
-Cloud & Security Engineer  
+Cloud Security Engineer  
 GitHub: [@ukahip](https://github.com/ukahip)
 
 -----
